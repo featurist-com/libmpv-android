@@ -63,7 +63,7 @@ jobs:
             esac
             sysdir=$NDK/sysroot/usr/lib/$t/23
             ls $sysdir/*.so > /dev/null || { echo "CHYBI $sysdir" | tee -a symcheck.txt; fail=1; continue; }
-            for s in $sysdir/*.so; do $NM -D --defined-only $s; done | awk 'NF>=3{print $3}' | sed 's/@.*//' | sort -u > def_sys.txt
+            for s in $sysdir/*.so; do $NM -D --defined-only $s 2>/dev/null || true; done | awk 'NF>=3{print $3}' | sed 's/@.*//' | sort -u > def_sys.txt
             for f in aarx/jni/$abi/*.so; do $NM -D --defined-only $f; done | awk 'NF>=3{print $3}' | sed 's/@.*//' | sort -u > def_own.txt
             sort -u def_sys.txt def_own.txt > def_all.txt
             for f in aarx/jni/$abi/*.so; do
