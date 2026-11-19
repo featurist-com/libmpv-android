@@ -31,7 +31,8 @@ cpuflags=
 	--disable-static --enable-shared --enable-{gpl,version3} \
 	--disable-{stripping,doc,programs} \
 	--disable-{muxers,encoders,devices,filters} \
-	--enable-filter=astats,asplit,amerge,bandpass,pan,aformat,aresample \
+	--enable-muxer=matroska,mp4,mpegts,mp3,adts,ogg,opus,flac,wav,ipod,mov,ac3,eac3 \
+	--enable-filter=astats,asplit,amerge,bandpass,pan,aformat,aresample,equalizer,volume,bwdif,yadif,scale,format,dynaudnorm,loudnorm,acompressor,alimiter,crossfeed,extrastereo,stereotools,highpass,lowpass,channelmap,channelsplit,join,ebur128,hqdn3d,unsharp,idet \
 	--disable-v4l2-m2m
 
 make -j$cores
