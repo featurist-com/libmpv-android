@@ -2,10 +2,6 @@ name: Build libmpv-android
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  pull_request:
 
 jobs:
   build:
@@ -28,7 +24,7 @@ jobs:
         working-directory: ./buildscripts
         run: |
           mkdir sdk
-          ln -s ${ANDROID_HOME} ./sdk/android-sdk-linux
+          ln -s $ANDROID_HOME ./sdk/android-sdk-linux
 
       - name: Install system dependencies
         run: |
@@ -50,7 +46,43 @@ jobs:
         working-directory: ./buildscripts
         run: ./build.sh
 
+      - name: Symbol check (min API 23)
+        shell: bash
+        run: |
+          NDK=$ANDROID_HOME/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64
+          NM=$NDK/bin/llvm-nm
+          rm -rf aarx && mkdir aarx && (cd aarx && unzip -q ../libmpv/build/outputs/aar/libmpv-release.aar)
+          : > symcheck.txt
+          fail=0
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            case $abi in
+              armeabi-v7a) t=arm-linux-androideabi;;
+              arm64-v8a) t=aarch64-linux-android;;
+              x86) t=i686-linux-android;;
+              x86_64) t=x86_64-linux-android;;
+            esac
+            sysdir=$NDK/sysroot/usr/lib/$t/23
+            ls $sysdir/*.so > /dev/null || { echo "CHYBI $sysdir" | tee -a symcheck.txt; fail=1; continue; }
+            for s in $sysdir/*.so; do $NM -D --defined-only $s; done | awk 'NF>=3{print $3}' | sed 's/@.*//' | sort -u > def_sys.txt
+            for f in aarx/jni/$abi/*.so; do $NM -D --defined-only $f; done | awk 'NF>=3{print $3}' | sed 's/@.*//' | sort -u > def_own.txt
+            sort -u def_sys.txt def_own.txt > def_all.txt
+            for f in aarx/jni/$abi/*.so; do
+              $NM -D --undefined-only $f | awk '$1=="U"{print $2}' | sed 's/@.*//' | sort -u > und.txt
+              miss=$(comm -23 und.txt def_all.txt)
+              if [ -n "$miss" ]; then
+                echo "=== $abi $(basename $f): symboly mimo API 23:" | tee -a symcheck.txt
+                echo "$miss" | tee -a symcheck.txt
+                fail=1
+              fi
+            done
+          done
+          [ $fail -eq 0 ] && echo "OK: vse jede na API 23" | tee -a symcheck.txt
+          exit $fail
+
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: libmpv-release.aar
-          path: ./libmpv/build/outputs/aar/libmpv-release.aar
+          path: |
+            ./libmpv/build/outputs/aar/libmpv-release.aar
+            ./symcheck.txt
